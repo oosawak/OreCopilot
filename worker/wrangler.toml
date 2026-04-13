@@ -1,0 +1,9 @@
+name = "second-brain-oauth"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# 環境変数はコードにコミットしない。
+# Cloudflare Dashboard > Worker > Settings > Variables and Secrets で設定:
+#   GITHUB_CLIENT_ID     = <your-client-id>
+#   GITHUB_CLIENT_SECRET = <your-client-secret> (Secret として登録)
+#   ALLOWED_ORIGIN       = https://your-app-domain.com

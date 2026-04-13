@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { resetOctokit } from '../lib/github'
+import { logout } from '../lib/auth'
 
 const LLM_MODES = [
   { value: 'pro', label: '🔴 Pro (最高性能)', color: 'text-red-400' },
@@ -26,7 +27,7 @@ function Field({ label, storageKey, type = 'text', placeholder }: {
   )
 }
 
-export function Settings() {
+export function Settings({ onLogout }: { onLogout?: () => void }) {
   const [mode, setMode] = useState<string>(() => localStorage.getItem('llm_mode') || 'cheap')
   const handleMode = (v: string) => { setMode(v); localStorage.setItem('llm_mode', v) }
 
@@ -36,13 +37,21 @@ export function Settings() {
 
       <section className="mb-6">
         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">GitHub</h3>
-        <Field label="Personal Access Token (PAT)" storageKey="github_token" type="password" placeholder="ghp_..." />
+        <div className="bg-green-900/40 border border-green-700 rounded px-3 py-2 text-sm text-green-300 mb-3">
+          ✅ GitHubログイン済み（OAuthトークン使用中）
+        </div>
         <Field label="Owner (ユーザー名 or Org)" storageKey="github_owner" placeholder="username" />
         <Field label="Repository名" storageKey="github_repo" placeholder="my-second-brain" />
-        <button
-          onClick={() => { resetOctokit(); alert('接続リセットしました') }}
-          className="text-xs text-slate-400 underline mt-1"
-        >接続をリセット</button>
+        <div className="flex gap-3 mt-2">
+          <button
+            onClick={() => { resetOctokit(); alert('接続リセットしました') }}
+            className="text-xs text-slate-400 underline"
+          >接続をリセット</button>
+          <button
+            onClick={() => { logout(); onLogout?.() }}
+            className="text-xs text-red-400 underline"
+          >ログアウト</button>
+        </div>
       </section>
 
       <section className="mb-6">
