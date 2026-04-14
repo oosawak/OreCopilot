@@ -1,5 +1,5 @@
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ''
-const OAUTH_WORKER_URL = import.meta.env.VITE_OAUTH_WORKER_URL || ''
+const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET || ''
 const SCOPES = 'repo'
 
 /** GitHub OAuth ログイン画面にリダイレクトする */
@@ -24,16 +24,24 @@ export async function handleOAuthCallback(): Promise<boolean> {
   if (!code || !state || state !== savedState) return false
   sessionStorage.removeItem('oauth_state')
 
-  // Cloudflare Worker 経由でトークン交換
-  const res = await fetch(OAUTH_WORKER_URL, {
+  // 🔨 ビルド時に環境変数から Secret を注入（GitHub Actions使用）
+  const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: GITHUB_CLIENT_ID,
+      client_secret: GITHUB_CLIENT_SECRET,
+      code,
+      state,
+    }),
   })
 
-  if (!res.ok) throw new Error(`Token exchange failed: ${res.statusText}`)
-  const { access_token, error } = await res.json()
-  if (error) throw new Error(`GitHub OAuth error: ${error}`)
+  if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.statusText}`)
+  const { access_token, error, error_description } = await tokenRes.json()
+  if (error) throw new Error(`GitHub OAuth error: ${error} - ${error_description}`)
 
   localStorage.setItem('github_token', access_token)
 
