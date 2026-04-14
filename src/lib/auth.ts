@@ -1,5 +1,5 @@
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || ''
-const GITHUB_CLIENT_SECRET = import.meta.env.VITE_GITHUB_CLIENT_SECRET || ''
+const OAUTH_CALLBACK_URL = import.meta.env.VITE_OAUTH_CALLBACK_URL || ''
 const SCOPES = 'repo'
 
 /** GitHub OAuth ログイン画面にリダイレクトする */
@@ -24,19 +24,13 @@ export async function handleOAuthCallback(): Promise<boolean> {
   if (!code || !state || state !== savedState) return false
   sessionStorage.removeItem('oauth_state')
 
-  // 🔨 ビルド時に環境変数から Secret を注入（GitHub Actions使用）
-  const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+  // ✅ バックエンド経由でトークン交換（CORS 回避）
+  const tokenRes = await fetch(OAUTH_CALLBACK_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
     },
-    body: JSON.stringify({
-      client_id: GITHUB_CLIENT_ID,
-      client_secret: GITHUB_CLIENT_SECRET,
-      code,
-      state,
-    }),
+    body: JSON.stringify({ code }),
   })
 
   if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.statusText}`)
