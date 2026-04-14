@@ -161,23 +161,152 @@ curl -X POST http://localhost:8787 \
 
 ## 🚀 本番環境へのデプロイ
 
-### GitHub Pages にデプロイ
+### GitHub Pages にデプロイ（推奨）
+
+**前提条件**:
+- GitHub に **Private リポジトリ** `orecopilot` を作成済み
+- Cloudflare Worker をデプロイ済み
+- GitHub OAuth App を作成済み
+
+#### ステップ1: リポジトリに GitHub Pages データ用リポジトリを追加
+
+アプリ用（orecopilot）とデータ用（my-second-brain）の2つのリポジトリが必要：
 
 ```bash
-# 1. vite.config.ts に base を設定
-# base: '/orecopilot/'
+# orecopilot リポジトリ（このアプリ）
+# https://github.com/yourname/orecopilot
 
-# 2. ビルド
-npm run build
-
-# 3. dist/ をコミット & プッシュ
-git add dist/
-git commit -m "deploy to gh-pages"
-git push origin master
-
-# 4. GitHub Pages をリポジトリ設定で有効化
-# Settings > Pages > Branch: master, folder: / (or /dist)
+# my-second-brain リポジトリ（データ保存用）
+# https://github.com/yourname/my-second-brain （Private推奨）
 ```
+
+#### ステップ2: vite.config.ts に base を設定
+
+```typescript
+export default defineConfig({
+  base: '/orecopilot/',  // リポジトリ名に合わせて変更
+  plugins: [...],
+})
+```
+
+#### ステップ3: 環境変数をビルドに組み込む
+
+`.env.production.local` を作成（`.gitignore` に追加）：
+
+```env
+VITE_GITHUB_CLIENT_ID=<GitHub OAuth App の Client ID>
+VITE_OAUTH_WORKER_URL=https://second-brain-oauth.yourname.workers.dev
+```
+
+または、GitHub Actions で環境変数を注入する場合は、Actions Secrets に登録：
+- `VITE_GITHUB_CLIENT_ID`
+- `VITE_OAUTH_WORKER_URL`
+
+#### ステップ4: ビルド
+
+```bash
+npm run build
+# dist/ フォルダが生成される
+```
+
+#### ステップ5: GitHub Pages の設定
+
+**方法A: dist/ を gh-pages ブランチにプッシュ（手動）**
+
+```bash
+# dist/ を ghpages ブランチにコピーしてプッシュ
+git checkout --orphan gh-pages
+git rm -rf .
+cp -r dist/* .
+git add .
+git commit -m "deploy to gh-pages"
+git push -u origin gh-pages
+git checkout master
+```
+
+**方法B: GitHub Actions で自動デプロイ（推奨）**
+
+`.github/workflows/deploy.yml` を作成：
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
+          VITE_OAUTH_WORKER_URL: ${{ secrets.VITE_OAUTH_WORKER_URL }}
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+```
+
+#### ステップ6: GitHub Pages を有効化
+
+- リポジトリ → Settings → Pages
+- Source: `Deploy from a branch`
+- Branch: `gh-pages` / `root`
+- Save
+
+#### ステップ7: GitHub OAuth App の設定を更新
+
+- GitHub → Settings → Developer settings → OAuth Apps
+- Homepage URL: `https://yourname.github.io/orecopilot/`
+- Callback URL: 同じ
+- Save
+
+#### ステップ8: アクセス確認
+
+```
+https://yourname.github.io/orecopilot/
+```
+
+---
+
+#### トラブルシューティング
+
+**問題: CSS・JS が 404 で読み込まれない**
+- 原因: `vite.config.ts` の `base` が `'/orecopilot/'` になっていない
+- 解決: `base` を正しく設定して再ビルド
+
+**問題: OAuth callback で `base` パスが含まれていない**
+- GitHub OAuth App の Callback URL: `https://yourname.github.io/orecopilot/`
+- フロントエンド側で `window.location.pathname` をチェック（自動的に `/orecopilot/` が含まれるはず）
+
+**問題: ビルド時に `VITE_GITHUB_CLIENT_ID` が undefined**
+- `.env.production.local` を作成してローカルで値を設定
+- GitHub Actions で環境変数をセット
+
+---
+
+### Vercel にデプロイ
+
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+環境変数設定：
+- Vercel Dashboard → Project Settings → Environment Variables
+- `VITE_GITHUB_CLIENT_ID`
+- `VITE_OAUTH_WORKER_URL`
+
+GitHub OAuth App の設定：
+- Homepage URL: `https://orecopilot.vercel.app/`
+- Callback URL: 同じ
 
 ### Vercel にデプロイ
 
